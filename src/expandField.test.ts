@@ -29,6 +29,10 @@ describe('expandField', () => {
         expect(expandField('*', 0, 59, 'minute')).toEqual([...Array(60).keys()]);
     });
 
+    test('expands a range of values', () => {
+        expect(expandField('JAN-FEB', 1, 12, 'month')).toEqual([1, 2]);
+    });
+
     test('throws error on a stepped value expression with mixed values and ranges', () => {
         expect(() => expandField('1,3,5-7/20', 0, 59, 'minute')).toThrow('Invalid initial value in minute: 5-7/20');
     });

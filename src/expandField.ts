@@ -1,3 +1,9 @@
+import { mappedMonths } from "./constants";
+
+const convertMonth = (month: string) => {
+    return mappedMonths[month] || Number(month);
+}
+
 /**
  * Expands a cron field value to all possible values within a specified range.
  * Supports handling of ranges (e.g., '1-5'), steps (e.g., '*\/15'), and specific values.
@@ -14,8 +20,14 @@ const expandField = (field: string, start: number, end: number, fieldName: strin
     const parts = field.split(',');
 
     for (const fieldPart of parts) {
-        if (fieldPart.includes('/')) {
-            const [initial, step] = fieldPart.split('/');
+        let normalizedFieldPart = fieldPart.toUpperCase();
+
+        if (fieldName === 'month' && mappedMonths[normalizedFieldPart]) {
+            normalizedFieldPart = mappedMonths[normalizedFieldPart].toString();
+        }
+
+        if (normalizedFieldPart.includes('/')) {
+            const [initial, step] = normalizedFieldPart.split('/');
             const parsedStep = Number(step);
             const parsedInitial = Number(initial);
 
@@ -39,20 +51,39 @@ const expandField = (field: string, start: number, end: number, fieldName: strin
                 expanded.add(i);
             }
         }
-        else if (fieldPart.includes('-')) {
-            const [rangeStart, rangeEnd] = fieldPart.split('-').map(Number);
-            if (rangeStart < start || rangeEnd > end || rangeStart > rangeEnd) {
+        else if (normalizedFieldPart.includes('-')) {
+            const [rangeStart, rangeEnd] = normalizedFieldPart.split('-').map((part) => {
+                if (fieldName === 'month') {
+                    return convertMonth(part)
+                }
+                if (isNaN(parseInt(part))) {
+                    throw new Error(`Invalid ${fieldName} range: ${fieldPart}`)
+                }
+                return Number(part);
+            });
+            if (rangeStart < start || rangeEnd > end) {
                 throw new Error(`Invalid ${fieldName} range: ${fieldPart}`);
             }
-            for (let i = rangeStart; i <= rangeEnd; i++) {
-                expanded.add(i);
+            if (rangeStart < rangeEnd) {
+                for (let i = rangeStart; i <= rangeEnd; i++) {
+                    expanded.add(i);
+                }
             }
-        } else if (fieldPart === '*') {
+            else {
+                for (let i = rangeStart; i <= end; i++) {
+                    expanded.add(i);
+                }
+                for (let i = start; i <= rangeEnd; i++) {
+                    expanded.add(i);
+                }
+            }
+
+        } else if (normalizedFieldPart === '*') {
             for (let i = start; i <= end; i++) {
                 expanded.add(i);
             }
         } else {
-            const value = parseInt(fieldPart);
+            const value = parseInt(normalizedFieldPart);
             if (isNaN(value) || value < start || value > end) {
                 throw new Error(`Invalid ${fieldName} value: ${fieldPart}`);
             }
